@@ -151,19 +151,13 @@ def parse_gamelogic_dll(dll_path: str, output_file: str = "owl_data.json") -> di
         if members:
             all_enums[ename] = members
 
-    results = {
-        "total_enums": len(all_enums),
-        "total_entries": sum(len(v) for v in all_enums.values()),
-        "enums": all_enums
-    }
-
     if output_file:
         out_path = Path(output_file)
         if out_path.parent:
             out_path.parent.mkdir(parents=True, exist_ok=True)
         with open(out_path, "w", encoding="utf-8") as f:
-            json.dump(results, f, indent=2, ensure_ascii=False)
-    return results
+            json.dump(all_enums, f, indent=2, ensure_ascii=False)
+    return all_enums
 
 
 def main():
@@ -182,7 +176,7 @@ def main():
 
     if args.dll:
         data = parse_gamelogic_dll(args.dll, args.output)
-        print(f"[+] Parsed {data['total_enums']} enums / {data['total_entries']} entries -> {args.output}")
+        print(f"[+] Parsed {len(data)} enums / {sum(len(v) for v in data.values())} entries -> {args.output}")
         return
 
     info = fetch_hotfix_info(args.channel, args.version)
@@ -203,7 +197,7 @@ def main():
         f.write(dll_bytes)
 
     data = parse_gamelogic_dll(str(dll_path), args.output)
-    print(f"[+] Parsed {data['total_enums']} enums / {data['total_entries']} entries -> {args.output}")
+    print(f"[+] Parsed {len(data)} enums / {sum(len(v) for v in data.values())} entries -> {args.output}")
 
 
 if __name__ == "__main__":
