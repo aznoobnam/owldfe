@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import json
+import re
 import struct
 import hashlib
 import argparse
@@ -159,6 +160,22 @@ def parse_gamelogic_dll(dll_path: str, output_file: str = "owl_data.json") -> di
             json.dump(all_enums, f, indent=2, ensure_ascii=False)
     return all_enums
 
+def extract_game_version(hotfix_url: str) -> str:
+    # ponytail: assumes ...hotfix_X.Y.Z[.W] structure, parse via semver if hotfix naming convention changes
+    match = re.search(r"hotfix_(\d+\.\d+\.\d+)", hotfix_url, re.IGNORECASE)
+    if not match:
+        raise ValueError(f"Could not extract game version from hotfix URL: {hotfix_url}")
+    return match.group(1)
+
+
+def save_version_file(version: str, output_path: str = "version.json") -> None:
+    out_path = Path(output_path)
+    if out_path.parent:
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(out_path, "w", encoding="utf-8") as f:
+        json.dump({"version": version}, f)
+        f.write("\n")
+
 
 def main():
     parser = argparse.ArgumentParser(description="Fetch hotfix, decrypt GameLogic.dll, parse every enum raw")
@@ -169,6 +186,7 @@ def main():
     parser.add_argument("--dll", type=str, default=None, help="Skip fetch/decrypt, parse an already-decrypted GameLogic.dll directly")
     parser.add_argument("--output", type=str, default="owl_data.json", help="Path to output json file")
     parser.add_argument("--output-dir", type=str, default="./owl_dump")
+    parser.add_argument("--version-output", type=str, default="version.json", help="Path to output version json file")
     args = parser.parse_args()
 
     out_dir = Path(args.output_dir)
@@ -181,6 +199,9 @@ def main():
 
     info = fetch_hotfix_info(args.channel, args.version)
     print(f"[+] Found hotfix: {info['fileUrl']}")
+    game_ver = extract_game_version(info["fileUrl"])
+    save_version_file(game_ver, args.version_output)
+    print(f"[+] Extracted game version: {game_ver} -> {args.version_output}")
     downloaded = download_hotfix(info["fileUrl"], info["fileMd5"])
 
     key_bytes = bytes.fromhex(args.key) if args.key and len(args.key) in (32, 48, 64) else (args.key.encode() if args.key else None)
