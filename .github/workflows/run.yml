@@ -31,8 +31,8 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add owl_data.json
+          git add owl_data.json version.json
           if ! git diff --staged --quiet; then
-            git commit -m "Update owl_data.json"
+            git commit -m "Updated to newest version"
             git push
           fi
