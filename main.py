@@ -33,21 +33,42 @@ CHANNELS = {
 }
 
 
-def get_latest_appstore_version() -> str:
+def parse_version(ver: str) -> tuple:
+    parts = [int(x) for x in re.findall(r"\d+", str(ver))]
+    while parts and parts[-1] == 0:
+        parts.pop()
+    return tuple(parts)
+
+
+def get_stored_version(version_file: str = "version.json") -> str:
+    try:
+        with open(version_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            if "version" in data and data["version"]:
+                return str(data["version"])
+    except Exception:
+        pass
+    return "0.0.0"
+
+
+def get_latest_appstore_version(version_file: str = "version.json") -> str:
+    stored_ver = get_stored_version(version_file)
     try:
         req = urllib.request.Request(ITUNES_LOOKUP_URL, headers={"User-Agent": "Mozilla/5.0"})
         with urllib.request.urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read().decode())
             if data.get("resultCount", 0) > 0:
-                return data["results"][0].get("version", "3.6.0")
+                appstore_ver = data["results"][0].get("version")
+                if appstore_ver and parse_version(appstore_ver) > parse_version(stored_ver):
+                    return appstore_ver
     except Exception:
         pass
-    return "3.6.0"
+    return stored_ver if stored_ver != "0.0.0" else "3.6.0"
 
 
-def fetch_hotfix_info(channel: str = "gp", version: str = None) -> dict:
+def fetch_hotfix_info(channel: str = "gp", version: str = None, version_file: str = "version.json") -> dict:
     cfg = CHANNELS[channel]
-    game_ver = version or (get_latest_appstore_version() if channel == "ios" else "3.6.0")
+    game_ver = version or get_latest_appstore_version(version_file)
     headers = {
         "User-Agent": "UnityPlayer/2021.3.16f1",
         "x-game-id": cfg["game_id"],
@@ -197,7 +218,7 @@ def main():
         print(f"[+] Parsed {len(data)} enums / {sum(len(v) for v in data.values())} entries -> {args.output}")
         return
 
-    info = fetch_hotfix_info(args.channel, args.version)
+    info = fetch_hotfix_info(args.channel, args.version, args.version_output)
     print(f"[+] Found hotfix: {info['fileUrl']}")
     game_ver = extract_game_version(info["fileUrl"])
     save_version_file(game_ver, args.version_output)
